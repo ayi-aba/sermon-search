@@ -74,6 +74,29 @@ def cell_list(value):
     return [s for s in (x.strip() for x in cell_text(value).split(",")) if s]
 
 
+def parse_start(start, event, link):
+    """Start comes back as display text ("Sun, May 7, 10:30 AM", no year), so the year
+    comes from the event name, the Podbean slug, or failing those the weekday."""
+    if re.match(r"\d{4}-\d{2}-\d{2}", start):
+        return start[:10]
+    m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", event)
+    if m:
+        return date(int(m[3]), int(m[1]), int(m[2])).isoformat()
+    m = re.match(r"(\w{3}), (\w{3}) (\d{1,2})", start)
+    if not m:
+        return ""
+    dow, month, day = m[1], MONTHS.index(next(x for x in MONTHS if x.startswith(m[2]))) + 1, int(m[3])
+    hint = re.search(r"\b20(\d\d)\b|HMW (\d\d)\b", event) or re.search(r"/e/(\d\d)\d{4}-", link)
+    years = range(2020, date.today().year + 2)
+    fits = [y for y in years if date(y, month, day).strftime("%a") == dow]
+    if hint:
+        year = 2000 + int(next(g for g in hint.groups() if g))
+        if year in fits or not fits:
+            return date(year, month, day).isoformat()
+    past = [y for y in fits if date(y, month, day) <= date.today()]
+    return date((past or fits)[-1], month, day).isoformat() if fits else ""
+
+
 def fetch_coda_rows(token):
     rows, page_token = [], None
     while True:
@@ -84,12 +107,13 @@ def fetch_coda_rows(token):
         data = json.loads(http_get(url, {"Authorization": f"Bearer {token}"}))
         for item in data["items"]:
             v = item["values"]
+            event, link = cell_text(v.get(COL_EVENT)), cell_text(v.get(COL_LINK))
             rows.append({
-                "date": cell_text(v.get(COL_START))[:10],  # ISO datetime -> YYYY-MM-DD
-                "event": cell_text(v.get(COL_EVENT)),
+                "date": parse_start(cell_text(v.get(COL_START)), event, link),
+                "event": event,
                 "title": cell_text(v.get(COL_TITLE)),
                 "refs": cell_list(v.get(COL_REFS)),
-                "link": cell_text(v.get(COL_LINK)),
+                "link": link,
             })
         page_token = data.get("nextPageToken")
         if not page_token:
@@ -192,9 +216,10 @@ def build(rows, cache):
     for r in rows:
         rows_per_date[r["date"]] = rows_per_date.get(r["date"], 0) + 1
 
-    sermons, skipped = [], {"sharepoint": 0, "untitled": 0}
+    sermons, skipped = [], {"sharepoint": 0, "untitled": 0, "undated": 0}
     for r in rows:
         if not r["date"]:
+            skipped["undated"] += 1
             continue
         link, kind = r["link"].strip(), link_kind(r["link"])
         ep = by_url.get(norm_url(link)) if link else None
@@ -269,7 +294,7 @@ def main():
     with_desc = sum(1 for s in sermons if s["description"])
     print(f"{len(rows)} Coda rows -> {len(sermons)} sermons "
           f"({with_desc} with descriptions; left out: {skipped['sharepoint']} SharePoint-only, "
-          f"{skipped['untitled']} untitled); {os.path.getsize(OUT_PATH) // 1024} KB")
+          f"{skipped['untitled']} untitled, {skipped['undated']} undated); {os.path.getsize(OUT_PATH) // 1024} KB")
 
 
 if __name__ == "__main__":
