@@ -164,6 +164,9 @@
 <script>
 (() => {
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  // Filler words don't narrow the search ("fear of the lord" = "fear lord").
+  const FILLER = new Set(("a an the and or but nor of to in on at for with by from as into about " +
+    "that this these those is are was were be been it its so than then").split(" "));
   const input = document.getElementById("q");
   const clearBtn = document.getElementById("clear");
   const list = document.getElementById("results");
@@ -209,7 +212,10 @@
 
   function render() {
     const q = input.value.trim().toLowerCase();
-    const terms = q.split(/\s+/).filter(Boolean);
+    const words = q.split(/\s+/).filter(Boolean);
+    const meaningful = words.filter((w) => !FILLER.has(w));
+    // Typing only filler (e.g. "a" on the way to "abide") still searches as typed.
+    const terms = meaningful.length ? meaningful : words;
     const matches = terms.length ? sermons.filter((s) => terms.every((t) => s.searchText.includes(t))) : sermons;
     const re = terms.length
       ? new RegExp([...terms].sort((a, b) => b.length - a.length).map(escapeRe).join("|"), "gi")
