@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sermon Search</title>
+<meta name="description" content="Search Alabaster NYC Sunday sermons by title, scripture or date.">
+<style>
+  :root {
+    --bg: #faf8f5;
+    --surface: #ffffff;
+    --text: #1f1d1a;
+    --muted: #6b665e;
+    --line: #e7e2da;
+    --accent: #8a5a2b;
+    --accent-soft: #f3e9dd;
+    --mark: #ffe58f;
+    --mark-text: #1f1d1a;
+    --focus: #b77a3c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161513;
+      --surface: #1f1d1a;
+      --text: #ece8e1;
+      --muted: #a39d93;
+      --line: #34312c;
+      --accent: #e0aa6e;
+      --accent-soft: #3a2d20;
+      --mark: #7a5c12;
+      --mark-text: #fff6dc;
+      --focus: #e0aa6e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+
+  header { padding: 40px 0 8px; }
+  h1 { margin: 0 0 4px; font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+  .sub { margin: 0; color: var(--muted); }
+
+  .search-bar {
+    position: sticky; top: 0; z-index: 2;
+    background: var(--bg);
+    padding: 16px 0 10px;
+  }
+  .search-box { position: relative; }
+  .search-box svg {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    width: 18px; height: 18px; color: var(--muted); pointer-events: none;
+  }
+  #q {
+    width: 100%;
+    font: inherit; font-size: 17px;
+    padding: 13px 44px 13px 42px;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: var(--surface); color: var(--text);
+    outline: none;
+    -webkit-appearance: none; appearance: none;
+  }
+  #q:focus { border-color: var(--focus); box-shadow: 0 0 0 3px var(--accent-soft); }
+  #q::-webkit-search-cancel-button { display: none; }
+  #clear {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; border: 0; border-radius: 8px;
+    background: transparent; color: var(--muted); font-size: 20px; line-height: 1;
+    cursor: pointer;
+  }
+  #clear:hover { background: var(--accent-soft); color: var(--text); }
+  #clear[hidden] { display: none; }
+  .meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; color: var(--muted); font-size: 14px; }
+  .hint { text-align: right; }
+
+  ol { list-style: none; margin: 0; padding: 0 0 48px; }
+  li.sermon {
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 16px;
+    padding: 16px 0; border-bottom: 1px solid var(--line);
+  }
+  .date { grid-column: 1 / -1; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .date .event { margin-left: 6px; }
+  .title { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.3; }
+  .desc {
+    grid-column: 1 / 2; margin: 2px 0 0; color: var(--muted); font-size: 14px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .refs { grid-column: 1 / 2; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip {
+    font: inherit; font-size: 13px; line-height: 1;
+    padding: 6px 10px; border-radius: 999px;
+    border: 1px solid transparent; background: var(--accent-soft); color: var(--text);
+    cursor: pointer;
+  }
+  .chip:hover, .chip:focus-visible { border-color: var(--accent); outline: none; }
+  .listen {
+    grid-column: 2; grid-row: 2 / span 3; align-self: start;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 999px;
+    background: var(--accent); color: var(--bg);
+    font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap;
+  }
+  .listen:hover { filter: brightness(1.08); }
+  .listen svg { width: 12px; height: 12px; }
+  .no-link { grid-column: 2; grid-row: 2; font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+  mark { background: var(--mark); color: var(--mark-text); border-radius: 3px; padding: 0 1px; }
+
+  .empty { padding: 48px 0; text-align: center; color: var(--muted); }
+  .empty strong { display: block; color: var(--text); font-size: 18px; margin-bottom: 4px; }
+  .empty button {
+    margin-top: 12px; font: inherit; padding: 8px 16px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer;
+  }
+
+  footer { padding: 0 0 32px; color: var(--muted); font-size: 13px; }
+  footer a { color: inherit; }
+
+  @media (max-width: 560px) {
+    header { padding-top: 24px; }
+    h1 { font-size: 24px; }
+    .hint { display: none; }
+    li.sermon { grid-template-columns: 1fr; }
+    .listen, .no-link { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 8px; }
+    .desc, .refs { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Sermon Search</h1>
+    <p class="sub">Alabaster NYC Sunday sermons since 2022. Search by title, scripture or date.</p>
+  </header>
+
+  <div class="search-bar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Try “Isaiah”, “mercy”, “John 15” or “March 2024”"
+             autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search sermons" aria-controls="results">
+      <button id="clear" type="button" aria-label="Clear search" hidden>×</button>
+    </div>
+    <div class="meta">
+      <span id="count" role="status" aria-live="polite">Loading sermons…</span>
+      <span class="hint">Every word must match · click a reference to search it</span>
+    </div>
+  </div>
+
+  <ol id="results"></ol>
+
+  <footer>
+    Recordings on <a href="https://alabastergroup.podbean.com/">Podbean</a>.
+    <span id="updated"></span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const input = document.getElementById("q");
+  const clearBtn = document.getElementById("clear");
+  const list = document.getElementById("results");
+  const count = document.getElementById("count");
+  let sermons = [];
+
+  const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  function highlight(text, re) {
+    if (!re) return escapeHtml(text);
+    let out = "", last = 0;
+    text.replace(re, (m, off) => {
+      out += escapeHtml(text.slice(last, off)) + "<mark>" + escapeHtml(m) + "</mark>";
+      last = off + m.length;
+      return m;
+    });
+    return out + escapeHtml(text.slice(last));
+  }
+
+  // Podbean descriptions end with a scripture line and "NYC Sunday Sermon | date"; the row
+  // already shows both, so they stay searchable but aren't displayed.
+  const TRAILER = /(Sunday Sermon\s*\||^(?:[1-3] )?[A-Z][a-z]+(?: of [A-Z][a-z]+)? \d[\d:,\-–\s]*(?:;|$))/;
+
+  // Show the part of the description where a term matched, when the match isn't already visible.
+  function snippet(desc, re, visible) {
+    const text = desc.split("\n").filter((line) => !TRAILER.test(line)).join(" ");
+    if (!re || visible) return text;
+    re.lastIndex = 0;
+    const m = re.exec(text);
+    re.lastIndex = 0;
+    if (!m || m.index < 120) return text;
+    const start = text.lastIndexOf(" ", m.index - 60);
+    return "…" + text.slice(start + 1);
+  }
+
+  function formatDate(iso) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${MONTHS[m - 1]} ${d}, ${y}`;
+  }
+
+  const playIcon = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v9l8-4.5z" fill="currentColor"/></svg>';
+
+  function render() {
+    const q = input.value.trim().toLowerCase();
+    const terms = q.split(/\s+/).filter(Boolean);
+    const matches = terms.length ? sermons.filter((s) => terms.every((t) => s.searchText.includes(t))) : sermons;
+    const re = terms.length
+      ? new RegExp([...terms].sort((a, b) => b.length - a.length).map(escapeRe).join("|"), "gi")
+      : null;
+
+    clearBtn.hidden = !input.value;
+    const n = matches.length;
+    count.textContent = terms.length
+      ? (n ? `${n} sermon${n === 1 ? "" : "s"}` : "No sermons match")
+      : `${n} sermons`;
+
+    if (!n) {
+      list.innerHTML = `<li class="empty"><strong>No sermons match “${escapeHtml(input.value.trim())}”</strong>
+        Try fewer words, a book name like “Romans”, or a year like “2024”.<br>
+        <button type="button" data-clear>Show all sermons</button></li>`;
+      return;
+    }
+
+    list.innerHTML = matches.map((s) => {
+      const event = s.event && !/^Sunday Service/i.test(s.event)
+        ? `<span class="event">· ${highlight(s.event, re)}</span>` : "";
+      const refs = s.refs.length
+        ? `<div class="refs">${s.refs.map((r) =>
+            `<button type="button" class="chip" data-ref="${escapeHtml(r)}">${highlight(r, re)}</button>`).join("")}</div>`
+        : "";
+      const shown = [s.title, s.event, ...s.refs, formatDate(s.date)].join(" ").toLowerCase();
+      const visible = terms.every((t) => shown.includes(t));
+      const descText = s.description ? snippet(s.description, re, visible) : "";
+      const desc = descText ? `<p class="desc">${highlight(descText, re)}</p>` : "";
+      const action = s.link
+        ? `<a class="listen" href="${escapeHtml(s.link)}" target="_blank" rel="noopener">${playIcon}Listen</a>`
+        : `<span class="no-link">No recording</span>`;
+      return `<li class="sermon">
+        <div class="date"><time datetime="${s.date}">${highlight(formatDate(s.date), re)}</time>${event}</div>
+        <h2 class="title">${highlight(s.title, re)}</h2>
+        ${action}${desc}${refs}
+      </li>`;
+    }).join("");
+  }
+
+  function setQuery(q) {
+    input.value = q;
+    update();
+  }
+
+  function update() {
+    render();
+    const url = new URL(location.href);
+    if (input.value.trim()) url.searchParams.set("q", input.value.trim());
+    else url.searchParams.delete("q");
+    history.replaceState(null, "", url);
+  }
+
+  input.addEventListener("input", update);
+  input.addEventListener("keydown", (e) => { if (e.key === "Escape") setQuery(""); });
+  clearBtn.addEventListener("click", () => { setQuery(""); input.focus(); });
+  list.addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-ref]");
+    if (chip) {
+      setQuery(chip.dataset.ref);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (e.target.closest("[data-clear]")) {
+      setQuery("");
+      input.focus();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "/" && document.activeElement !== input) { e.preventDefault(); input.focus(); }
+  });
+
+  input.value = new URL(location.href).searchParams.get("q") || "";
+
+  fetch("sermons.json", { cache: "no-cache" })
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then((data) => {
+      sermons = data.sort((a, b) => b.date.localeCompare(a.date));
+      const latest = sermons[0];
+      if (latest) document.getElementById("updated").textContent = `Latest: ${formatDate(latest.date)}.`;
+      render();
+    })
+    .catch(() => { count.textContent = "Couldn’t load sermons. Please refresh."; });
+})();
+</script>
+</body>
+</html>

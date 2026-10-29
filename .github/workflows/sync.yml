@@ -1,0 +1,65 @@
+name: Sync sermons and deploy
+
+on:
+  schedule:
+    # Mondays 03:00 UTC = Sunday 11 PM EDT / 10 PM EST, after the sermon is posted.
+    - cron: "0 3 * * 1"
+  workflow_dispatch: # "Run workflow" button
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # commit the refreshed sermons.json and Podbean cache
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CODA_API_TOKEN: ${{ secrets.CODA_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # If the sync fails the job stops here, nothing is deployed, and the last good page stays live.
+      # A push before the secret exists just deploys the committed sermons.json.
+      - name: Build sermons.json from Coda and Podbean
+        if: github.event_name != 'push' || env.CODA_API_TOKEN != ''
+        run: python3 scripts/build_sermons.py
+
+      - name: Commit refreshed data
+        run: |
+          if git diff --quiet -- sermons.json data/; then
+            echo "No data changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sermons.json data/
+          git commit -m "Sync sermons $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Collect site files
+        run: |
+          mkdir _site
+          cp index.html sermons.json _site/
+
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
