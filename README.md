@@ -6,7 +6,7 @@ A one-page search for Alabaster NYC sermons. Type in the box and the list filter
 - `sermons.json`: generated. One record per sermon, newest first.
 - `scripts/build_sermons.py`: builds `sermons.json` from Coda (the Sermon Recordings table in "Standard Programs") and the Podbean RSS feed. Standard library only.
 - `data/podbean-cache.json`: every Podbean episode the sync has seen. The feed only lists the latest 50, so this keeps older descriptions searchable.
-- `.github/workflows/sync.yml`: runs the sync every Sunday night (Mondays 03:00 UTC), on the "Run workflow" button, and on every push to `main`, then deploys to GitHub Pages.
+- `.github/workflows/sync.yml`: runs the sync every Tuesday morning (13:00 UTC = 8 AM EST / 9 AM EDT), on the "Run workflow" button, and on every push to `main`, then deploys to GitHub Pages.
 
 ## Setup
 
