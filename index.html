@@ -165,6 +165,27 @@
 (() => {
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   // Filler words don't narrow the search ("fear of the lord" = "fear lord").
+  // Keep numbers with the book they belong to, so "1 Chronicles 16" searches for that reference
+  // rather than "1", "chronicles" and "16" anywhere. Verses fall back to the chapter ("John 3:16"
+  // -> "john 3") since references are stored by chapter. Years (4 digits) stay separate, so
+  // "isaiah 2025" still means Isaiah sermons from 2025.
+  const BOOK_NUMBER = /^[1-3]$/;
+  const CHAPTER = /^(\d{1,3}(?:-\d{1,3})?)(?::[\d\-–,]*)?$/;
+  const isWord = (w) => /^[a-z]/.test(w || "") && !FILLER.has(w);
+
+  function groupReferences(words) {
+    const out = [];
+    for (let i = 0; i < words.length; i++) {
+      let term = words[i];
+      if (BOOK_NUMBER.test(term) && isWord(words[i + 1])) term += " " + words[++i];
+      if (isWord(term.split(" ").pop()) && CHAPTER.test(words[i + 1] || "")) {
+        term += " " + words[++i].match(CHAPTER)[1];
+      }
+      out.push(term);
+    }
+    return out;
+  }
+
   const FILLER = new Set(("a an the and or but nor of to in on at for with by from as into about " +
     "that this these those is are was were be been it its so than then").split(" "));
   const input = document.getElementById("q");
@@ -212,7 +233,7 @@
 
   function render() {
     const q = input.value.trim().toLowerCase();
-    const words = q.split(/\s+/).filter(Boolean);
+    const words = groupReferences(q.split(/\s+/).filter(Boolean));
     const meaningful = words.filter((w) => !FILLER.has(w));
     // Typing only filler (e.g. "a" on the way to "abide") still searches as typed.
     const terms = meaningful.length ? meaningful : words;
